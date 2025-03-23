@@ -13,7 +13,7 @@ A minimalistic dashboard application for the Raspberry Pi Pico W with Pimoroni D
 
 First, you need to install MicroPython on your Pico W:
 
-1. Download the latest Pimoroni MicroPython firmware for Pico W from: https://github.com/pimoroni/pimoroni-pico/releases
+1. Download the latest Pimoroni MicroPython firmware for Pico W from: https://github.com/pimoroni/pimoroni-pico/releases (I tested this with version [v1.24.0-beta2](https://github.com/pimoroni/pimoroni-pico/releases/tag/v1.24.0-beta2))
 2. Hold the BOOTSEL button on your Pico W while connecting it to your computer
 3. It will mount as a USB drive
 4. Copy the `.uf2` firmware file to the drive
