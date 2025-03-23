@@ -1,0 +1,4 @@
+# Development tools for PicoDash
+rshell>=0.0.31      # Remote shell for MicroPython
+adafruit-ampy>=1.1.0  # File transfer tool
+mpremote>=0.4.0     # MicroPython remote control
