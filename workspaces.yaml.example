@@ -1,0 +1,21 @@
+# PicoDash Workspace Configuration
+# This file defines the workspaces that will be displayed in sequence
+
+workspaces:
+  - name: "Time Display"
+    display_time: 10  # seconds
+    renderer: "TimeRenderer"
+  
+  - name: "Date Display"
+    display_time: 15  # seconds
+    renderer: "DateRenderer"
+    
+  - name: "Welcome"
+    display_time: 8  # seconds
+    renderer: "TextRenderer"
+    text: "Welcome to PicoDash!"
+    
+  - name: "Status"
+    display_time: 12  # seconds
+    renderer: "TextRenderer"
+    text: "System Status: Normal"

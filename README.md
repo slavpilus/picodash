@@ -96,10 +96,12 @@ Once setup is complete:
 2. It will connect to WiFi if credentials are available
 3. The dashboard will display notification counts
 4. Use the buttons for different functions:
-   - Button A: Refresh data
+   - Button A: Move to next workspace
    - Button B: Toggle WiFi
    - Button X: Show system info
-   - Button Y: Return to dashboard
+   - Button Y: Return to first workspace
+   - Button Y + X: Increase LED brightness
+   - Button Y + B: Decrease LED brightness
 
 ## Monitoring and Debugging
 
@@ -122,9 +124,39 @@ make list PORT=/dev/cu.usbmodem2101
   - `picographics.py` - Display graphics library
   - `pimoroni_i2c.py` - I2C communication
   - `pimoroni.py` - RGB LED and button handling
+  - `microdashboard.py` - Workspace management system
+  - `micropyaml.py` - YAML configuration parser
 - `Makefile` - Build and deployment tools
 - `requirements.txt` - Required Python packages for development
 - `wifi_config.txt.example` - Template for WiFi configuration
+- `workspaces.yaml.example` - Template for workspace configuration
+
+## Workspace Configuration
+
+The dashboard supports multiple workspace screens that automatically scroll horizontally. To configure workspaces:
+
+1. Copy the example configuration:
+   ```bash
+   cp workspaces.yaml.example workspaces.yaml
+   ```
+
+2. Edit the YAML file to define your workspaces:
+   ```yaml
+   workspaces:
+     - name: "Time Display"
+       display_time: 10  # seconds
+       renderer: "TimeRenderer"
+     
+     - name: "Welcome"
+       display_time: 8  # seconds
+       renderer: "TextRenderer"
+       text: "Custom message here!"
+   ```
+
+3. Supported renderer types:
+   - `TimeRenderer`: Displays current time
+   - `DateRenderer`: Displays current date
+   - `TextRenderer`: Displays a custom text message
 
 ## Development
 
@@ -135,6 +167,7 @@ The project is organized into phases:
 - **Phase 3**: Data integration from real API ⏳
 - **Phase 4**: Power management and optimization ⏳
 - **Phase 5**: User interface refinement ⏳
+- **Phase 6**: Workspace system with horizontal scrolling ✅
 
 ## Advanced Development
 

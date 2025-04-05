@@ -43,9 +43,10 @@ class PicoGraphics:
         # Draw a line
         print(f"Drawing line from ({x1}, {y1}) to ({x2}, {y2})")
     
-    def text(self, text, x, y, width, scale=1):
-        # Draw text
-        print(f"Drawing text '{text}' at ({x}, {y}) with width={width}, scale={scale}")
+    def text(self, text, xy):
+        # Draw text - simplified to match actual device implementation
+        # Expecting xy to be a tuple of (x, y)
+        print(f"Drawing text '{text}' at {xy}")
     
     def update(self):
         # Update the display

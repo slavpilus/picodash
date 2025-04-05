@@ -17,10 +17,10 @@ LIB_DIR = lib
 EMULATION_DIR = emulation
 
 # Files to upload
-MAIN_FILES = main.py boot.py wifi_config.txt
+MAIN_FILES = main.py boot.py wifi_config.txt workspaces.yaml
 LIB_FILES = $(wildcard $(LIB_DIR)/*.py)
 
-.PHONY: help install-tools setup-venv upload list connect reset refresh clean emulate emulate-build emulate-stop
+.PHONY: help install-tools setup-venv upload list connect reset refresh clean emulate emulate-build emulate-stop wifi_config workspace_config
 
 help:
 	@echo "PicoDash MicroPython Project"
@@ -36,6 +36,10 @@ help:
 	@echo "  make reset            Reset the Pico"
 	@echo "  make refresh          Reset and connect to REPL"
 	@echo "  make clean            Remove all files from Pico (except firmware)"
+	@echo ""
+	@echo "Configuration:"
+	@echo "  make wifi_config      Create wifi_config.txt from example"
+	@echo "  make workspace_config Create workspaces.yaml from example"
 	@echo ""
 	@echo "Emulation:"
 	@echo "  make emulate          Run the project in QEMU emulation"
@@ -99,12 +103,21 @@ wifi_config:
 		echo "wifi_config.txt already exists."; \
 	fi
 
+# Create workspace config from example if it doesn't exist
+workspace_config:
+	@if [ ! -f workspaces.yaml ]; then \
+		cp workspaces.yaml.example workspaces.yaml; \
+		echo "Created workspaces.yaml from example. Please edit with your workspace configuration."; \
+	else \
+		echo "workspaces.yaml already exists."; \
+	fi
+
 # Emulation targets
 emulate-build:
 	@echo "Building QEMU emulation environment..."
 	cd $(EMULATION_DIR) && docker-compose build
 
-emulate: wifi_config
+emulate: wifi_config workspace_config
 	@echo "Starting PicoDash in QEMU emulation..."
 	cd $(EMULATION_DIR) && docker-compose up
 
