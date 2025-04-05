@@ -47,6 +47,7 @@ GREEN = display.create_pen(0, 255, 0)
 BLUE = display.create_pen(0, 0, 255)
 YELLOW = display.create_pen(255, 255, 0)
 PURPLE = display.create_pen(255, 0, 255)
+DARK_ORANGE = display.create_pen(255, 140, 0)  # Added dark orange for consistent UI elements
 
 # ---- CONFIGURATION ----
 # Auto-cycle settings
@@ -157,17 +158,19 @@ def show_welcome():
     display.text("B: System Info", 20, 75)
     display.text("Y: Toggle Auto-Cycle", 20, 95)
     
-    # Show WiFi status
-    if wifi_connected:
-        display.set_pen(GREEN)
-        display.text("WiFi: Connected", 10, height-25)
-    else:
-        display.set_pen(RED)
-        display.text("WiFi: Disconnected", 10, height-25)
+    # Use dark orange pen for bottom text
+    display.set_pen(DARK_ORANGE)
     
-    # Show auto-cycle status
-    display.set_pen(GREEN if auto_cycle else RED)
-    display.text(f"Auto-Cycle: {('ON' if auto_cycle else 'OFF')}", width//2-40, height-25)
+    # Show WiFi status on left side (shortened)
+    if wifi_connected:
+        wifi_text = "WiFi: ON"
+    else:
+        wifi_text = "WiFi: OFF"
+    display.text(wifi_text, 10, height-25)
+    
+    # Show auto-cycle status on right side
+    auto_text = f"Auto: {('ON' if auto_cycle else 'OFF')}"
+    display.text(auto_text, width-100, height-25)
     
     display.update()
     # Only show RED LED when WiFi is disconnected, otherwise off
@@ -196,16 +199,20 @@ def show_time():
     display.set_pen(WHITE)
     display.text(time_str, width//2-30, height//2-10)
     
-    # Show navigation hint
-    display.set_pen(BLUE)
-    display.text("A: Next | Y: Auto", 10, height-25)
+    # Use dark orange pen for bottom text
+    display.set_pen(DARK_ORANGE)
+    display.text("A: Next", 10, height-25)
     
-    # Show WiFi status in corner
+    # Show auto-cycle status on right side
+    auto_text = f"Auto: {('ON' if auto_cycle else 'OFF')}"
+    display.text(auto_text, width-100, height-25)
+    
+    # Show WiFi status in corner with enough space
     if wifi_connected:
         display.set_pen(GREEN)
     else:
         display.set_pen(RED)
-    display.text("WiFi", width-30, 10)
+    display.text("WiFi", width-40, 10)
     
     display.update()
     # Only show RED LED when WiFi is disconnected, otherwise off
@@ -239,9 +246,13 @@ def show_date():
     weekday = weekdays[current[6]]  # current[6] is weekday (0-6, Monday is 0)
     display.text(weekday, width//2-30, height//2+10)
     
-    # Show navigation hint
-    display.set_pen(YELLOW)
-    display.text("A: Next | Y: Auto", 10, height-25)
+    # Use dark orange pen for bottom text
+    display.set_pen(DARK_ORANGE)
+    display.text("A: Next", 10, height-25)
+    
+    # Show auto-cycle status on right side
+    auto_text = f"Auto: {('ON' if auto_cycle else 'OFF')}"
+    display.text(auto_text, width-100, height-25)
     
     display.update()
     # Only show RED LED when WiFi is disconnected, otherwise off
@@ -269,15 +280,22 @@ def show_system_info():
     # Draw title
     display.text("System Info", 10, 10)
     
-    # Draw memory stats
-    display.text(f"Memory Free: {mem_free} bytes", 10, 35)
-    display.text(f"Memory Used: {mem_alloc} bytes", 10, 55)
-    display.text(f"Memory Usage: {mem_percent}%", 10, 75)
+    # Draw memory stats with KB units for better display
+    mem_free_kb = round(mem_free / 1024, 1)
+    mem_alloc_kb = round(mem_alloc / 1024, 1)
+    
+    display.text(f"Free: {mem_free_kb} KB", 10, 35)
+    display.text(f"Used: {mem_alloc_kb} KB", 10, 55)
+    display.text(f"Usage: {mem_percent}%", 10, 75)
     display.text(f"Display: {width}x{height}", 10, 95)
     
-    # Show navigation hint
-    display.set_pen(GREEN)
-    display.text("A: Next | Y: Auto", 10, height-25)
+    # Use dark orange pen for bottom text
+    display.set_pen(DARK_ORANGE)
+    display.text("A: Next", 10, height-25)
+    
+    # Show auto-cycle status on right side
+    auto_text = f"Auto: {('ON' if auto_cycle else 'OFF')}"
+    display.text(auto_text, width-100, height-25)
     
     display.update()
     # Only show RED LED when WiFi is disconnected, otherwise off
