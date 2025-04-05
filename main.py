@@ -102,8 +102,8 @@ def connect_wifi():
     ssid, password = credentials
     print(f"Connecting to WiFi: {ssid}")
     
-    # Set LED to blue during connection
-    led.set_rgb(0, 0, 255)
+    # Set LED to red during connection attempts
+    led.set_rgb(255, 0, 0)
     
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
@@ -170,8 +170,11 @@ def show_welcome():
     display.text(f"Auto-Cycle: {('ON' if auto_cycle else 'OFF')}", width//2-40, height-25)
     
     display.update()
-    # Fix: Use integers directly, not tuple indexing
-    led.set_rgb(255, 0, 255)  # Purple for welcome
+    # Only show RED LED when WiFi is disconnected, otherwise off
+    if not wifi_connected:
+        led.set_rgb(255, 0, 0)  # Red for WiFi disconnected
+    else:
+        led.set_rgb(0, 0, 0)  # LED off
 
 def show_time():
     """Show current time"""
@@ -205,8 +208,11 @@ def show_time():
     display.text("WiFi", width-30, 10)
     
     display.update()
-    # Fix: Use integers directly, not tuple indexing
-    led.set_rgb(0, 0, 255)  # Blue for time
+    # Only show RED LED when WiFi is disconnected, otherwise off
+    if not wifi_connected:
+        led.set_rgb(255, 0, 0)  # Red for WiFi disconnected
+    else:
+        led.set_rgb(0, 0, 0)  # LED off
 
 def show_date():
     """Show current date"""
@@ -238,8 +244,11 @@ def show_date():
     display.text("A: Next | Y: Auto", 10, height-25)
     
     display.update()
-    # Fix: Use integers directly, not tuple indexing
-    led.set_rgb(255, 255, 0)  # Yellow for date
+    # Only show RED LED when WiFi is disconnected, otherwise off
+    if not wifi_connected:
+        led.set_rgb(255, 0, 0)  # Red for WiFi disconnected
+    else:
+        led.set_rgb(0, 0, 0)  # LED off
 
 def show_system_info():
     """Show system information"""
@@ -271,8 +280,11 @@ def show_system_info():
     display.text("A: Next | Y: Auto", 10, height-25)
     
     display.update()
-    # Fix: Use integers directly, not tuple indexing
-    led.set_rgb(0, 255, 0)  # Green for system
+    # Only show RED LED when WiFi is disconnected, otherwise off
+    if not wifi_connected:
+        led.set_rgb(255, 0, 0)  # Red for WiFi disconnected
+    else:
+        led.set_rgb(0, 0, 0)  # LED off
 
 # ---- SCREEN MANAGEMENT FUNCTIONS ----
 def next_screen():
