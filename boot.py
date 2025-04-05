@@ -3,9 +3,10 @@ PicoDash - Boot file for Raspberry Pi Pico W
 This file runs automatically on startup before main.py
 """
 
-import machine
-import time
 import gc
+import time
+
+import machine
 
 # Free up as much memory as possible
 gc.collect()

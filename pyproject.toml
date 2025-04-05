@@ -16,6 +16,8 @@ skip_glob = ["*/vendor/*"]
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+
+[tool.ruff.lint]
 select = ["E", "F", "B", "Q"]
 ignore = ["E203", "E231", "E501"]
 exclude = [

@@ -7,6 +7,7 @@ This is a minimal implementation for development without a physical device
 DISPLAY_PICO_DISPLAY = 0
 PEN_RGB565 = 2  # 16-bit color mode
 
+
 class PicoGraphics:
     def __init__(self, display=DISPLAY_PICO_DISPLAY, pen_type=PEN_RGB565, rotate=0):
         self.display = display
@@ -16,17 +17,17 @@ class PicoGraphics:
         self.height = 135
         self.current_pen = 0
         print(f"PicoGraphics initialized with display={display}, pen_type={pen_type}")
-    
+
     def get_bounds(self):
         # Return display dimensions
         return (self.width, self.height)
-    
+
     def create_pen(self, r, g, b):
         # Create a pen with the given RGB values
         # In a real implementation, this would create a 16-bit RGB565 value
         # For our stub, just return a simple number
         return (r << 16) | (g << 8) | b
-    
+
     def set_pen(self, pen):
         # Set the current pen
         self.current_pen = pen
@@ -34,24 +35,24 @@ class PicoGraphics:
         g = (pen >> 8) & 0xFF
         b = pen & 0xFF
         print(f"Set pen to RGB({r}, {g}, {b})")
-    
+
     def clear(self):
         # Clear the display
         print("Display cleared")
-    
+
     def line(self, x1, y1, x2, y2):
         # Draw a line
         print(f"Drawing line from ({x1}, {y1}) to ({x2}, {y2})")
-    
+
     def text(self, text, xy):
         # Draw text - simplified to match actual device implementation
         # Expecting xy to be a tuple of (x, y)
         print(f"Drawing text '{text}' at {xy}")
-    
+
     def update(self):
         # Update the display
         print("Display updated")
-    
+
     def set_backlight(self, brightness):
         # Set the backlight brightness (0.0-1.0)
         print(f"Setting backlight to {brightness}")

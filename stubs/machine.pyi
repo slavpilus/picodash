@@ -1,5 +1,6 @@
 """Type stubs for MicroPython machine module"""
-from typing import Any, Callable, List, Optional, Tuple, Union
+
+from typing import Any, Optional, Tuple
 
 # Classes
 class Pin:
@@ -7,7 +8,7 @@ class Pin:
     OUT: int
     PULL_UP: int
     PULL_DOWN: int
-    
+
     def __init__(self, id: int, mode: int = -1, pull: int = -1) -> None: ...
     def init(self, mode: int = -1, pull: int = -1) -> None: ...
     def value(self, x: Optional[int] = None) -> int: ...
@@ -16,7 +17,9 @@ class Pin:
 
 class RTC:
     def __init__(self) -> None: ...
-    def datetime(self, datetimetuple: Optional[Tuple[int, int, int, int, int, int, int, int]] = None) -> Tuple[int, int, int, int, int, int, int, int]: ...
+    def datetime(
+        self, datetimetuple: Optional[Tuple[int, int, int, int, int, int, int, int]] = None
+    ) -> Tuple[int, int, int, int, int, int, int, int]: ...
 
 # Functions
 def freq(hz: Optional[int] = None) -> int: ...
