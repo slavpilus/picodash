@@ -7,13 +7,22 @@ A minimalistic dashboard application for the Raspberry Pi Pico W with Pimoroni D
 - Raspberry Pi Pico W
 - Pimoroni Pico Display Pack (240x135 pixel IPS LCD)
 
+## Features
+
+- Auto-cycling screens (Welcome, Time, Date, System Info)
+- Simple button controls
+- Wi-Fi connectivity status
+- Visual LED indicators for different screens
+- Memory usage monitoring
+- Real-time clock updates
+
 ## Setup Instructions (Command Line)
 
 ### 1. Flash MicroPython to your Pico W
 
 First, you need to install MicroPython on your Pico W:
 
-1. Download the latest Pimoroni MicroPython firmware for Pico W from: https://github.com/pimoroni/pimoroni-pico/releases (I tested this with version [v1.24.0-beta2](https://github.com/pimoroni/pimoroni-pico/releases/tag/v1.24.0-beta2))
+1. Download the latest Pimoroni MicroPython firmware for Pico W from: https://github.com/pimoroni/pimoroni-pico/releases (Tested with version [v1.24.0-beta2](https://github.com/pimoroni/pimoroni-pico/releases/tag/v1.24.0-beta2))
 2. Hold the BOOTSEL button on your Pico W while connecting it to your computer
 3. It will mount as a USB drive
 4. Copy the `.uf2` firmware file to the drive
@@ -67,9 +76,11 @@ nano wifi_config.txt
 # Find serial ports on macOS:
 ls /dev/cu.usbmodem*
 
-make upload PORT=/dev/cu.usbmodem2101
-make upload-main PORT=/dev/cu.usbmodem2101
-make upload-lib PORT=/dev/cu.usbmodem2101
+# Upload the files
+mpremote connect /dev/cu.usbmodem* cp picodash.py :/main.py
+
+# OR use make (if available)
+make upload PORT=/dev/cu.usbmodem*
 ```
 
 ## Available Make Commands
@@ -94,112 +105,35 @@ Once setup is complete:
 
 1. The Pico W will automatically run the dashboard on startup
 2. It will connect to WiFi if credentials are available
-3. The dashboard will display notification counts
+3. The dashboard will cycle through screens:
+   - Welcome screen with controls information
+   - Time display showing current time
+   - Date display showing current date and weekday
+   - System info showing memory usage and display size
+
 4. Use the buttons for different functions:
-   - Button A: Move to next workspace
-   - Button B: Toggle WiFi
-   - Button X: Show system info
-   - Button Y: Return to first workspace
-   - Button Y + X: Increase LED brightness
-   - Button Y + B: Decrease LED brightness
+   - Button A: Move to next screen
+   - Button B: Jump to system info screen
+   - Button Y: Toggle auto-cycle on/off
+   - Button X: Not used (known hardware limitation)
+
+5. LED colors indicate current screen:
+   - Purple: Welcome screen
+   - Blue: Time display
+   - Yellow: Date display
+   - Green: System info
 
 ## Monitoring and Debugging
 
 ```bash
 # Connect to REPL for live monitoring
-make connect PORT=/dev/cu.usbmodem2101
+mpremote connect /dev/cu.usbmodem* repl
 
 # Reset the Pico
-make reset PORT=/dev/cu.usbmodem2101
+mpremote connect /dev/cu.usbmodem* reset
 
 # List files on the device
-make list PORT=/dev/cu.usbmodem2101
-```
-
-## Project Structure
-
-- `main.py` - Main application code
-- `boot.py` - Startup configuration
-- `lib/` - Libraries for the project:
-  - `picographics.py` - Display graphics library
-  - `pimoroni_i2c.py` - I2C communication
-  - `pimoroni.py` - RGB LED and button handling
-  - `microdashboard.py` - Workspace management system
-  - `micropyaml.py` - YAML configuration parser
-- `Makefile` - Build and deployment tools
-- `requirements.txt` - Required Python packages for development
-- `wifi_config.txt.example` - Template for WiFi configuration
-- `workspaces.yaml.example` - Template for workspace configuration
-
-## Workspace Configuration
-
-The dashboard supports multiple workspace screens that automatically scroll horizontally. To configure workspaces:
-
-1. Copy the example configuration:
-   ```bash
-   cp workspaces.yaml.example workspaces.yaml
-   ```
-
-2. Edit the YAML file to define your workspaces:
-   ```yaml
-   workspaces:
-     - name: "Time Display"
-       display_time: 10  # seconds
-       renderer: "TimeRenderer"
-     
-     - name: "Welcome"
-       display_time: 8  # seconds
-       renderer: "TextRenderer"
-       text: "Custom message here!"
-   ```
-
-3. Supported renderer types:
-   - `TimeRenderer`: Displays current time
-   - `DateRenderer`: Displays current date
-   - `TextRenderer`: Displays a custom text message
-
-## Development
-
-The project is organized into phases:
-
-- **Phase 1**: Basic display rendering ✅
-- **Phase 2**: WiFi connectivity ✅
-- **Phase 3**: Data integration from real API ⏳
-- **Phase 4**: Power management and optimization ⏳
-- **Phase 5**: User interface refinement ⏳
-- **Phase 6**: Workspace system with horizontal scrolling ✅
-
-## Advanced Development
-
-### Running Scripts Directly
-
-You can run Python scripts directly on the Pico without permanently uploading them:
-
-```bash
-mpremote connect /dev/cu.usbmodem2101 run your_script.py
-```
-
-### Executing Commands
-
-Execute single commands on the Pico:
-
-```bash
-mpremote connect /dev/cu.usbmodem2101 exec "import machine; machine.reset()"
-```
-
-### File System Operations
-
-Work with the Pico's filesystem directly:
-
-```bash
-# Copy a file to the Pico
-ampy --port /dev/cu.usbmodem2101 put local_file.py remote_file.py
-
-# Read a file from the Pico
-ampy --port /dev/cu.usbmodem2101 get remote_file.py
-
-# Delete a file
-ampy --port /dev/cu.usbmodem2101 rm remote_file.py
+mpremote connect /dev/cu.usbmodem* ls
 ```
 
 ## Troubleshooting
@@ -210,7 +144,7 @@ ampy --port /dev/cu.usbmodem2101 rm remote_file.py
 - **Permission Denied**: On Linux/macOS, you may need to use `sudo` or add your user to the appropriate group
 - **Connection Error**: Try unplugging and reconnecting the Pico
 - **Memory Errors**: MicroPython has limited RAM - reduce code complexity or use frozen modules
-- **Build Tools Not Found**: Make sure the tools are in your PATH after installation
+- **Button X Not Working**: This is a known hardware limitation on some display units. The code is designed to work without this button.
 
 ## License
 

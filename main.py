@@ -1,220 +1,74 @@
 """
 PicoDash - A minimalistic dashboard for Raspberry Pi Pico W with Pimoroni Display Pack
+Clean, optimized version with auto-cycling and working around broken X button
+
+Features:
+- Auto-cycles through different screens (Welcome, Time, Date, System Info)
+- Simple button controls (A: Next screen, B: System info, Y: Toggle auto-cycle)
+- Visual LED indicators for different screens
+- Real-time clock updates
+- WiFi connectivity status display
+- Memory usage monitoring
+
+Hardware:
+- Raspberry Pi Pico W
+- Pimoroni Display Pack (240x135 pixel IPS LCD)
+
+Author: Slav Pilus (original) with Claude optimizations
+License: MIT
 """
 
-import machine
 import time
-import json
-import network
 import gc
-import os
+import network
+from picographics import PicoGraphics, DISPLAY_PICO_DISPLAY, PEN_RGB565
+from pimoroni import RGBLED, Button
 
-# Basic initialization to help with troubleshooting
-print("Starting PicoDash - Troubleshooting Mode")
+# ---- INITIALIZATION ----
+print("Starting PicoDash")
 
-try:
-    from pimoroni_i2c import PimoroniI2C
-    print("Imported PimoroniI2C successfully")
-except ImportError as e:
-    print(f"Error importing PimoroniI2C: {e}")
-
-try:
-    from picographics import PicoGraphics, DISPLAY_PICO_DISPLAY, PEN_RGB565
-    print("Imported PicoGraphics successfully")
-except ImportError as e:
-    print(f"Error importing PicoGraphics: {e}")
-    
-try:
-    from pimoroni import RGBLED, Button
-    print("Imported RGBLED and Button successfully")
-except ImportError as e:
-    print(f"Error importing RGBLED/Button: {e}")
-
-# Import workspace and YAML modules
-try:
-    from lib.microdashboard import WorkspaceManager, Workspace, TimeRenderer, DateRenderer, TextRenderer
-    print("Imported workspace modules successfully")
-except ImportError as e:
-    print(f"Error importing workspace modules: {e}")
-    
-try:
-    from lib.micropyaml import MicroYAML
-    print("Imported MicroYAML successfully")
-except ImportError as e:
-    print(f"Error importing MicroYAML: {e}")
-
-try:
-    import urequests
-    print("Imported urequests successfully")
-except ImportError as e:
-    print(f"Error importing urequests: {e}")
-
-print("Import section completed")
-
-# Colors - define some constants for easy reference
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-YELLOW = (255, 255, 0)
-
-# Configuration constants
-REFRESH_INTERVAL_MS = 60000  # 1 minute
-ERROR_RETRY_INTERVAL_MS = 5000  # 5 seconds
-DISPLAY_BRIGHTNESS = 0.5  # 50% brightness (0.0-1.0)
-LED_BRIGHTNESS = 0.5  # 50% LED brightness (0.0-1.0)
-API_HOST = "api.example.com"
-API_PATH = "/notifications/count"
-WORKSPACE_CONFIG_FILE = "workspaces.yaml"  # Configuration file for workspaces
-
-# Initialize the Pimoroni Display
-# Set rotation=0 for horizontal text orientation
+# Initialize display
 display = PicoGraphics(display=DISPLAY_PICO_DISPLAY, pen_type=PEN_RGB565, rotate=0)
-display_width, display_height = display.get_bounds()
+width, height = display.get_bounds()
+display.set_backlight(0.8)  # 80% brightness
 
-# Initialize the workspace manager
-workspace_manager = WorkspaceManager(display, display_width, display_height)
+# Initialize LED and buttons
+led = RGBLED(6, 7, 8)
+button_a = Button(12)  # Next screen
+button_b = Button(13)  # System info
+button_y = Button(15)  # Toggle auto-cycle
+# Note: X button (14) is not used - known hardware issue
 
-# Initialize the RGB LED
-led = RGBLED(6, 7, 8)  # RGB pins for Pico Display Pack
+# Create pens
+BLACK = display.create_pen(0, 0, 0)
+WHITE = display.create_pen(255, 255, 255)
+RED = display.create_pen(255, 0, 0)
+GREEN = display.create_pen(0, 255, 0)
+BLUE = display.create_pen(0, 0, 255)
+YELLOW = display.create_pen(255, 255, 0)
+PURPLE = display.create_pen(255, 0, 255)
 
-# Initialize buttons
-button_a = Button(12)
-button_b = Button(13)
-button_x = Button(14)
-button_y = Button(15)
+# ---- CONFIGURATION ----
+# Auto-cycle settings
+auto_cycle = True
+current_screen_index = 0
+screens = ["welcome", "time", "date", "system"]
+display_times = [5, 10, 8, 7]  # Time in seconds for each screen
 
-# Create pens for drawing
-black_pen = display.create_pen(0, 0, 0)
-white_pen = display.create_pen(255, 255, 255)
-red_pen = display.create_pen(255, 0, 0)
-green_pen = display.create_pen(0, 255, 0)
-blue_pen = display.create_pen(0, 0, 255)
-
-# WiFi status
+# WiFi settings
 wifi_connected = False
+WIFI_RETRY_INTERVAL = 30000  # 30 seconds between connection attempts
 
-# Safe wrapper functions for display operations
-def safe_set_pen(pen_value):
-    """Safely set the pen, handling either color values or pen objects"""
-    try:
-        # Check if pen_value is an RGB tuple
-        if isinstance(pen_value, tuple) and len(pen_value) == 3:
-            r, g, b = pen_value
-            pen = display.create_pen(r, g, b)
-            display.set_pen(pen)
-        else:
-            # Assume it's a pen object from create_pen
-            display.set_pen(pen_value)
-    except Exception as e:
-        print(f"Error in safe_set_pen: {e}")
-        # Last resort fallback - try direct RGB values
-        try:
-            if pen_value == black_pen:
-                display.set_pen(0)  # Black (0 value for all channels)
-            elif pen_value == white_pen:
-                display.set_pen(0xFFFFFF)  # White (max value for all channels)
-            elif pen_value == red_pen:
-                display.set_pen(0xFF0000)  # Red
-            elif pen_value == green_pen:
-                display.set_pen(0x00FF00)  # Green
-            elif pen_value == blue_pen:
-                display.set_pen(0x0000FF)  # Blue
-            else:
-                display.set_pen(0xFFFFFF)  # Default to white
-        except Exception as e2:
-            print(f"Critical error in safe_set_pen fallback: {e2}")
-
-def safe_text(text_str, position):
-    """Safely render text, handling different parameter formats"""
-    try:
-        # Always use the tuple format that's expected by the device
-        display.text(text_str, position)
-    except Exception as e:
-        print(f"Error in safe_text: {e}")
-        # Try a different approach as last resort
-        try:
-            if isinstance(position, tuple):
-                x, y = position
-                # Try calling with separate arguments
-                display.text(text_str, x, y)
-            else:
-                # If position is not a tuple, try to handle it directly
-                display.text(text_str, position)
-        except Exception as e2:
-            print(f"First fallback in safe_text failed: {e2}")
-            try:
-                # Try direct integer values for x and y
-                if isinstance(position, tuple):
-                    x, y = position
-                    # Simplest possible approach
-                    print(f"Trying text at position {x},{y} with direct method")
-                    # Try with fixed values if all else fails
-                    display.text(text_str, 10, 10)
-                else:
-                    display.text(text_str, 10, 10)
-            except Exception as e3:
-                print(f"Critical error in safe_text all fallbacks failed: {e3}")
-
-class NotificationData:
-    """Class to hold notification data"""
-    def __init__(self, total_count=0, unread_count=0):
-        self.total_count = total_count
-        self.unread_count = unread_count
-
-def load_workspace_config():
-    """Load workspace configuration from YAML file"""
-    try:
-        # Check if the file exists, if not create it from example
-        try:
-            with open(WORKSPACE_CONFIG_FILE, 'r') as f:
-                pass  # Just checking if it exists
-        except OSError:
-            print(f"Workspace config file not found, creating from example")
-            try:
-                # Try to copy from example
-                with open(WORKSPACE_CONFIG_FILE+'.example', 'r') as src:
-                    with open(WORKSPACE_CONFIG_FILE, 'w') as dest:
-                        dest.write(src.read())
-                print(f"Created {WORKSPACE_CONFIG_FILE} from example")
-            except OSError as copy_err:
-                print(f"Failed to create config from example: {copy_err}")
-        
-        # Try to load configuration from the YAML file
-        config = MicroYAML.load_file(WORKSPACE_CONFIG_FILE)
-        
-        if not config or 'workspaces' not in config or not config['workspaces']:
-            print("Invalid workspace configuration, using defaults")
-            # Create a default configuration
-            return {
-                'workspaces': [
-                    {
-                        'name': 'Default Workspace',
-                        'display_time': 10,
-                        'renderer': 'TextRenderer',
-                        'text': 'PicoDash - Default Config'
-                    }
-                ]
-            }
-        
-        return config
-    except Exception as e:
-        print(f"Error loading workspace config: {e}")
-        # Return a minimal default configuration
-        return {
-            'workspaces': [
-                {
-                    'name': 'Error Workspace',
-                    'display_time': 10,
-                    'renderer': 'TextRenderer',
-                    'text': f'Config Error: {str(e)}'
-                }
-            ]
-        }
+# ---- UTILITY FUNCTIONS ----
+def draw_border():
+    """Draw a border around the screen"""
+    display.line(0, 0, width-1, 0)
+    display.line(0, 0, 0, height-1) 
+    display.line(width-1, 0, width-1, height-1)
+    display.line(0, height-1, width-1, height-1)
 
 def load_wifi_credentials():
-    """Load WiFi credentials from config file or return defaults"""
+    """Load WiFi credentials from config file"""
     try:
         with open('wifi_config.txt', 'r') as f:
             config_text = f.read()
@@ -231,17 +85,21 @@ def load_wifi_credentials():
         if ssid and password:
             return (ssid, password)
         else:
-            print("WiFi config incomplete, using defaults")
-            return ("YourSSID", "YourPassword")
+            print("WiFi config incomplete")
+            return None
     except OSError:
-        print("WiFi config file not found, using defaults")
-        return ("YourSSID", "YourPassword")
+        print("WiFi config file not found")
+        return None
 
 def connect_wifi():
-    """Connect to WiFi using credentials from config file"""
+    """Attempt to connect to WiFi"""
     global wifi_connected
     
-    ssid, password = load_wifi_credentials()
+    credentials = load_wifi_credentials()
+    if not credentials:
+        return False
+        
+    ssid, password = credentials
     print(f"Connecting to WiFi: {ssid}")
     
     # Set LED to blue during connection
@@ -250,350 +108,278 @@ def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     
-    # Connect to WiFi
+    # Only attempt connection if not already connected
     if not wlan.isconnected():
-        # Clear any previous connection
-        wlan.disconnect()
-        wlan.connect(ssid, password)
-        
-        # Wait for connection with timeout
-        max_wait = 20  # 10 seconds
-        while max_wait > 0:
-            if wlan.isconnected():
-                wifi_connected = True
-                led.set_rgb(0, 255, 0)  # Green when connected
-                print(f"Connected to WiFi. IP: {wlan.ifconfig()[0]}")
-                return True
-            max_wait -= 1
-            led.set_rgb(0, 0, int(255 * (max_wait % 2)))  # Flash blue during connection
-            time.sleep(0.5)
-        
-        # Connection failed
-        wifi_connected = False
-        led.set_rgb(255, 0, 0)  # Red for failure
-        print("Failed to connect to WiFi")
-        return False
+        try:
+            wlan.connect(ssid, password)
+            
+            # Wait for connection with timeout
+            max_wait = 10  # 5 seconds
+            while max_wait > 0:
+                if wlan.isconnected():
+                    wifi_connected = True
+                    print(f"Connected to WiFi. IP: {wlan.ifconfig()[0]}")
+                    return True
+                max_wait -= 1
+                time.sleep(0.5)
+            
+            # Connection failed
+            wifi_connected = False
+            print("Failed to connect to WiFi")
+            return False
+        except Exception as e:
+            print(f"WiFi connection error: {e}")
+            wifi_connected = False
+            return False
     else:
         # Already connected
         wifi_connected = True
-        led.set_rgb(0, 255, 0)  # Green when connected
         print(f"Already connected to WiFi. IP: {wlan.ifconfig()[0]}")
         return True
 
-def fetch_data():
-    """Fetch notification data from API"""
-    if not wifi_connected:
-        if not connect_wifi():
-            return NotificationData(0, 0)
-    
-    try:
-        # In Phase 2, we'll implement actual API fetching
-        # For Phase 1, return dummy data
-        dummy_data = {
-            "notifications": {
-                "total": 5,
-                "unread": 2
-            }
-        }
-        
-        # Parse the data
-        data = NotificationData(
-            total_count=dummy_data["notifications"]["total"],
-            unread_count=dummy_data["notifications"]["unread"]
-        )
-        return data
-    except Exception as e:
-        print(f"Error fetching data: {e}")
-        return NotificationData(0, 0)
-
-def render_dashboard(data):
-    """Render dashboard with notification data"""
-    # Clear the display
-    safe_set_pen(black_pen)
+# ---- SCREEN RENDERING FUNCTIONS ----
+def show_welcome():
+    """Show welcome screen with information and controls"""
+    display.set_pen(BLACK)
     display.clear()
+    display.set_pen(WHITE)
     
     # Draw border
-    safe_set_pen(white_pen)
-    display.line(0, 0, display_width-1, 0)
-    display.line(0, 0, 0, display_height-1)
-    display.line(display_width-1, 0, display_width-1, display_height-1)
-    display.line(0, display_height-1, display_width-1, display_height-1)
+    draw_border()
     
-    # Draw title
-    safe_set_pen(white_pen)
-    safe_text("PicoDash", (10, 10))
+    # Draw title and version
+    display.text("PicoDash", 10, 10)
+    display.text("v1.0", width-40, 10)
     
-    # Draw notification counts
-    safe_text(f"Notifications: {data.total_count}", (10, 50))
-    safe_text(f"Unread: {data.unread_count}", (10, 80))
+    # Draw instructions
+    display.text("Controls:", 10, 35)
+    display.text("A: Next Screen", 20, 55)
+    display.text("B: System Info", 20, 75)
+    display.text("Y: Toggle Auto-Cycle", 20, 95)
     
     # Show WiFi status
     if wifi_connected:
-        safe_set_pen(green_pen)
-        safe_text("WiFi: Connected", (10, 110))
+        display.set_pen(GREEN)
+        display.text("WiFi: Connected", 10, height-25)
     else:
-        safe_set_pen(red_pen)
-        safe_text("WiFi: Disconnected", (10, 110))
+        display.set_pen(RED)
+        display.text("WiFi: Disconnected", 10, height-25)
     
-    # Update the display
+    # Show auto-cycle status
+    display.set_pen(GREEN if auto_cycle else RED)
+    display.text(f"Auto-Cycle: {('ON' if auto_cycle else 'OFF')}", width//2-40, height-25)
+    
     display.update()
+    # Fix: Use integers directly, not tuple indexing
+    led.set_rgb(255, 0, 255)  # Purple for welcome
 
-def render_error(error_message):
-    """Render error message on display"""
-    # Clear the display
-    safe_set_pen(black_pen)
+def show_time():
+    """Show current time"""
+    display.set_pen(BLACK)
     display.clear()
+    display.set_pen(WHITE)
     
-    # Draw border in red
-    safe_set_pen(red_pen)
-    display.line(0, 0, display_width-1, 0)
-    display.line(0, 0, 0, display_height-1)
-    display.line(display_width-1, 0, display_width-1, display_height-1)
-    display.line(0, display_height-1, display_width-1, display_height-1)
+    # Draw border
+    draw_border()
     
-    # Draw error title
-    safe_text("ERROR", (10, 10))
+    # Get and format current time
+    current = time.localtime()
+    time_str = "{:02d}:{:02d}:{:02d}".format(current[3], current[4], current[5])  # HH:MM:SS
     
-    # Draw error message
-    safe_text(error_message, (10, 50))
+    # Draw text
+    display.text("Current Time", 10, 10)
     
-    # Update the display
+    # Draw time in larger text (centered)
+    display.set_pen(WHITE)
+    display.text(time_str, width//2-30, height//2-10)
+    
+    # Show navigation hint
+    display.set_pen(BLUE)
+    display.text("A: Next | Y: Auto", 10, height-25)
+    
+    # Show WiFi status in corner
+    if wifi_connected:
+        display.set_pen(GREEN)
+    else:
+        display.set_pen(RED)
+    display.text("WiFi", width-30, 10)
+    
     display.update()
+    # Fix: Use integers directly, not tuple indexing
+    led.set_rgb(0, 0, 255)  # Blue for time
 
-def handle_buttons():
-    """Handle button presses"""
-    if button_a.read():
-        # Button A: Force start transition to next workspace
-        print("Button A pressed - next workspace")
-        if workspace_manager.workspaces and not workspace_manager.is_transitioning:
-            workspace_manager._start_transition()
-        return True
-    
-    if button_b.read():
-        # Button B: Toggle WiFi
-        print("Button B pressed - toggling WiFi")
-        connect_wifi()
-        return True
-    
-    if button_x.read():
-        # Button X: Show system info
-        print("Button X pressed - showing system info")
-        safe_set_pen(black_pen)
-        display.clear()
-        safe_set_pen(white_pen)
-        
-        # Get memory info
-        gc.collect()
-        mem_free = gc.mem_free()
-        mem_alloc = gc.mem_alloc()
-        total = mem_free + mem_alloc
-        
-        # Get workspace info
-        workspace_count = len(workspace_manager.workspaces)
-        current_workspace = workspace_manager.current_index + 1 if workspace_count > 0 else 0
-        
-        safe_text("System Info", (10, 10))
-        safe_text(f"Free Mem: {mem_free} bytes", (10, 40))
-        safe_text(f"Used: {mem_alloc} bytes", (10, 60))
-        
-        # Add workspace info
-        safe_set_pen(green_pen)
-        safe_text(f"Workspaces: {workspace_count}", (10, 80))
-        safe_text(f"Current: {current_workspace}/{workspace_count}", (10, 100))
-        
-        # Add button controls
-        safe_set_pen(white_pen)
-        safe_text("A: Next view   B: Toggle WiFi", (10, 120))
-        
-        display.update()
-        time.sleep(3)  # Show for 3 seconds
-        return True
-    
-    if button_y.read():
-        # Button Y: Return to first workspace
-        print("Button Y pressed - return to first workspace")
-        if workspace_manager.workspaces:
-            workspace_manager.current_index = 0
-        return True
-    
-    return False
-
-def show_error_led():
-    """Flash the LED red to indicate an error"""
-    for _ in range(5):  # Flash 5 times
-        led.set_rgb(255, 0, 0)  # Red
-        time.sleep(0.2)
-        led.set_rgb(0, 0, 0)    # Off
-        time.sleep(0.2)
-    led.set_rgb(255, 0, 0)  # Keep red for continuous error indication
-
-def show_splash_screen():
-    """Show a splash screen on startup"""
-    # Initialize display
-    safe_set_pen(black_pen)
+def show_date():
+    """Show current date"""
+    display.set_pen(BLACK)
     display.clear()
-    safe_set_pen(white_pen)
-    safe_text("PicoDash", (10, 10))
-    safe_text("Starting...", (10, 50))
-    display.update()
+    display.set_pen(WHITE)
     
-    # Give the system time to initialize
-    time.sleep(1)
+    # Draw border
+    draw_border()
+    
+    # Get and format current date
+    current = time.localtime()
+    date_str = "{:04d}-{:02d}-{:02d}".format(current[0], current[1], current[2])  # YYYY-MM-DD
+    
+    # Draw text
+    display.text("Current Date", 10, 10)
+    
+    # Draw date
+    display.set_pen(WHITE)
+    display.text(date_str, width//2-50, height//2-20)
+    
+    # Draw weekday
+    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    weekday = weekdays[current[6]]  # current[6] is weekday (0-6, Monday is 0)
+    display.text(weekday, width//2-30, height//2+10)
+    
+    # Show navigation hint
+    display.set_pen(YELLOW)
+    display.text("A: Next | Y: Auto", 10, height-25)
+    
+    display.update()
+    # Fix: Use integers directly, not tuple indexing
+    led.set_rgb(255, 255, 0)  # Yellow for date
 
+def show_system_info():
+    """Show system information"""
+    display.set_pen(BLACK)
+    display.clear()
+    display.set_pen(WHITE)
+    
+    # Draw border
+    draw_border()
+    
+    # Get memory info
+    gc.collect()
+    mem_free = gc.mem_free()
+    mem_alloc = gc.mem_alloc()
+    mem_total = mem_free + mem_alloc
+    mem_percent = int((mem_alloc / mem_total) * 100)
+    
+    # Draw title
+    display.text("System Info", 10, 10)
+    
+    # Draw memory stats
+    display.text(f"Memory Free: {mem_free} bytes", 10, 35)
+    display.text(f"Memory Used: {mem_alloc} bytes", 10, 55)
+    display.text(f"Memory Usage: {mem_percent}%", 10, 75)
+    display.text(f"Display: {width}x{height}", 10, 95)
+    
+    # Show navigation hint
+    display.set_pen(GREEN)
+    display.text("A: Next | Y: Auto", 10, height-25)
+    
+    display.update()
+    # Fix: Use integers directly, not tuple indexing
+    led.set_rgb(0, 255, 0)  # Green for system
+
+# ---- SCREEN MANAGEMENT FUNCTIONS ----
+def next_screen():
+    """Change to the next screen in the cycle"""
+    global current_screen_index
+    current_screen_index = (current_screen_index + 1) % len(screens)
+    show_screen(screens[current_screen_index])
+    
+def show_screen(screen_name):
+    """Show a specific screen by name"""
+    if screen_name == "welcome":
+        show_welcome()
+    elif screen_name == "time":
+        show_time()
+    elif screen_name == "date":
+        show_date()
+    elif screen_name == "system":
+        show_system_info()
+
+# ---- MAIN FUNCTION ----
 def main():
-    """Main function"""
-    print("PicoDash main function starting...")
+    """Main program loop"""
+    global auto_cycle, current_screen_index
     
     try:
-        # Set initial LED color
-        print("Setting initial LED color")
-        led.set_rgb(YELLOW)  # Yellow during startup
+        # Attempt initial WiFi connection
+        connect_wifi()
         
-        # Set display brightness
-        print("Setting display brightness")
-        display.set_backlight(DISPLAY_BRIGHTNESS)
+        # Show initial welcome screen
+        show_welcome()
         
-        # Show splash screen
-        print("Showing splash screen")
-        show_splash_screen()
-        
-        # Try to connect to WiFi
-        print("Connecting to WiFi")
-        try:
-            connect_wifi()
-        except Exception as e:
-            print(f"WiFi error: {e}")
-        
-        # Load workspace configuration
-        print("Loading workspace configuration")
-        config = load_workspace_config()
-        print(f"Config loaded: {config}")
-        
-        # Configure workspace manager
-        print("Configuring workspace manager")
-        if not workspace_manager.load_from_config(config):
-            # If loading failed, create a default error workspace
-            print("Failed to load workspaces from config, creating default")
-            error_text = "Failed to load workspaces"
-            workspace = Workspace("Error", 10)
-            renderer = TextRenderer(error_text)  # Create renderer first
-            workspace.set_renderer(renderer)     # Then set it in the workspace
-            workspace_manager.add_workspace(workspace)
-            print(error_text)
-            # Indicate error with LED
-            show_error_led()
-        
-        # Add default notification workspace if configured workspaces exist
-        print(f"Workspace count: {len(workspace_manager.workspaces)}")
-        if len(workspace_manager.workspaces) > 0:
-            # Fetch initial data
-            print("Fetching notification data")
-            data = fetch_data()
-            
-            # Create a custom notification renderer
-            print("Creating notification workspace")
-            notification_text = f"Notifications: {data.total_count}, Unread: {data.unread_count}"
-            notification_workspace = Workspace("Notifications", 10)
-            renderer = TextRenderer(notification_text)  # Create renderer first
-            notification_workspace.set_renderer(renderer)  # Then set it
-            workspace_manager.add_workspace(notification_workspace)
+        # Initialize timers
+        last_button_a = 0
+        last_button_b = 0
+        last_button_y = 0
+        last_screen_change = time.ticks_ms()
+        last_time_update = time.ticks_ms()
+        last_wifi_attempt = time.ticks_ms()
         
         # Main loop
-        print("Starting main loop")
-        last_data_update = time.ticks_ms()
-        
-        # Force first render before entering loop
-        print("Initial workspace render")
-        if len(workspace_manager.workspaces) > 0:
-            try:
-                print("Updating first workspace")
-                workspace_manager.workspaces[0].update()
-                print("Rendering first workspace")
-                workspace_manager.workspaces[0].render()
-                print("First workspace rendered successfully")
-            except Exception as e:
-                print(f"ERROR in initial render: {type(e).__name__}: {e}")
-                show_error_led()
-        
         while True:
-            # Handle button presses
-            if handle_buttons():
-                # If a button was pressed, reset the last update time
-                last_data_update = time.ticks_ms()
-                time.sleep(0.2)  # Debounce
-                continue
-                
-            # Check if it's time to update notification data
             current_time = time.ticks_ms()
-            if time.ticks_diff(current_time, last_data_update) > REFRESH_INTERVAL_MS:
-                print("Time to refresh data")
-                try:
-                    # Get fresh notification data
-                    data = fetch_data()
-                    
-                    # Update the notification workspace if it exists
-                    if len(workspace_manager.workspaces) > 0:
-                        # For simplicity, we'll assume the last workspace is the notification one
-                        notification_text = f"Notifications: {data.total_count}, Unread: {data.unread_count}"
-                        last_workspace_index = len(workspace_manager.workspaces) - 1
-                        notification_workspace = workspace_manager.workspaces[last_workspace_index]
-                        if isinstance(notification_workspace.renderer, TextRenderer):
-                            notification_workspace.renderer.text = notification_text
-                except Exception as e:
-                    print(f"Error refreshing data: {e}")
-                    
-                last_data_update = time.ticks_ms()
             
-            # Update the workspace manager (handles transitions and rendering)
-            try:
-                print("Updating workspace manager")
-                workspace_manager.update()
-                print("Workspace manager updated successfully")
-            except Exception as e:
-                print(f"ERROR updating workspace manager: {type(e).__name__}: {e}")
-                # Try a simple direct render as a fallback
-                try:
-                    print("Attempting simple fallback render")
-                    safe_set_pen(black_pen)  # Black
-                    display.clear()
-                    safe_set_pen(white_pen)  # White
-                    safe_text("Error - Check REPL", (10, 10))
-                    display.update()
-                    show_error_led()
-                except Exception as e2:
-                    print(f"CRITICAL: Even fallback render failed: {e2}")
+            # Check button A with debounce - NEXT SCREEN
+            if button_a.read() and (current_time - last_button_a > 300):
+                next_screen()
+                last_button_a = current_time
+                last_screen_change = current_time  # Reset auto-cycle timer
             
-            # Sleep to reduce power consumption
-            time.sleep(0.1)  # Slightly longer sleep for stability
+            # Check button B with debounce - SYSTEM INFO
+            if button_b.read() and (current_time - last_button_b > 300):
+                current_screen_index = screens.index("system")
+                show_system_info()
+                last_button_b = current_time
+                last_screen_change = current_time  # Reset auto-cycle timer
+            
+            # Check button Y with debounce - TOGGLE AUTO-CYCLE
+            if button_y.read() and (current_time - last_button_y > 300):
+                auto_cycle = not auto_cycle
+                current_screen_index = screens.index("welcome")
+                show_welcome()  # Show welcome with updated auto-cycle status
+                last_button_y = current_time
+                last_screen_change = current_time  # Reset auto-cycle timer
+            
+            # Auto-cycle screens if enabled
+            if auto_cycle and (current_time - last_screen_change > display_times[current_screen_index] * 1000):
+                next_screen()
+                last_screen_change = current_time
+            
+            # Update time display every second if on time screen
+            if screens[current_screen_index] == "time" and (current_time - last_time_update > 1000):
+                show_time()
+                last_time_update = current_time
+            
+            # Try reconnecting WiFi periodically if disconnected
+            if not wifi_connected and (current_time - last_wifi_attempt > WIFI_RETRY_INTERVAL):
+                connect_wifi()
+                last_wifi_attempt = current_time
+                # Refresh current screen to update WiFi status
+                show_screen(screens[current_screen_index])
+            
+            # Small delay to prevent CPU overload
+            time.sleep(0.05)
             
     except Exception as e:
-        print(f"CRITICAL ERROR in main function: {e}")
-        print("Details:", str(type(e)), str(e))
-        # Show error LED
+        # Show error screen
+        display.set_pen(BLACK)
+        display.clear()
+        display.set_pen(RED)
+        display.text("ERROR:", 10, 10)
+        display.text(str(type(e).__name__), 10, 40)
+        error_msg = str(e)
+        display.text(error_msg[:20], 10, 70)
+        if len(error_msg) > 20:
+            display.text(error_msg[20:40], 10, 90)
+        display.update()
+        
+        # Red LED for error
+        led.set_rgb(255, 0, 0)
+        
+        # Save error to file for debugging
         try:
-            show_error_led()
-        except Exception:
-            # Last resort - just set LED to steady red
-            try:
-                led.set_rgb(255, 0, 0)
-            except Exception:
-                pass  # Nothing more we can do
-                
-        # Basic fallback display
-        try:
-            safe_set_pen(red_pen)  # Red
-            display.clear()
-            safe_set_pen(white_pen)  # White
-            safe_text(f"Error: {type(e).__name__}", (10, 10))
-            safe_text(str(e)[:20], (10, 50))
-            display.update()
-        except Exception as display_err:
-            print(f"Cannot even show error: {display_err}")
+            with open('error_log.txt', 'w') as f:
+                f.write(f"{type(e).__name__}: {error_msg}")
+        except:
+            pass
 
-# Run the main function
+# Start the main program
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        render_error(f"Fatal error: {str(e)}")
-        raise
+    main()
