@@ -1,0 +1,28 @@
+[MASTER]
+# Include MicroPython specific modules
+extension-pkg-whitelist=micropython,machine,network
+
+# Good variable names
+good-names=i,j,k,ex,Run,_,id,f,wlan,gc,lt
+
+# Ignore certain errors/warnings that are common in MicroPython code
+disable=
+    missing-module-docstring,
+    missing-function-docstring,
+    global-statement,
+    broad-except,
+    import-error,
+    no-member,
+    unused-argument
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=100
+
+[TYPECHECK]
+# List of members which are set dynamically and missed by pylint inference
+generated-members=machine.*,network.*
+
+[MISCELLANEOUS]
+# List of note tags to take in consideration
+notes=FIXME,TODO

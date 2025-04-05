@@ -17,6 +17,11 @@ build/
 
 # Local configuration
 wifi_config.txt
+workspaces.yaml
+error_log.txt
+
+# Don't ignore stubs
+!stubs/
 
 # Python virtual environments
 venv/

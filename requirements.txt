@@ -2,3 +2,10 @@
 rshell>=0.0.31      # Remote shell for MicroPython
 adafruit-ampy>=1.1.0  # File transfer tool
 mpremote>=0.4.0     # MicroPython remote control
+
+# Code quality tools
+pylint>=2.17.0      # Python linter
+ruff>=0.1.6         # Fast Python linter
+mypy>=1.5.1         # Static type checker
+black>=23.10.0      # Code formatter
+isort>=5.12.0       # Import sorter

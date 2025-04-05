@@ -92,12 +92,15 @@ make upload PORT=/dev/cu.usbmodem*
 | `make upload` | Upload all files to the Pico |
 | `make upload-main` | Upload only main files |
 | `make upload-lib` | Upload only library files |
-| `make list` | List files on the Pico |
+| `make list` | List files on the Pico recursively |
 | `make connect` | Connect to the Pico's REPL console |
 | `make reset` | Reset the Pico |
 | `make refresh` | Reset and connect to REPL |
 | `make clean` | Remove all files from the Pico |
 | `make wifi_config` | Create wifi_config.txt from example |
+| `make set-time` | Set the Pico's RTC to current system time |
+| `make lint` | Run all linters (ruff, pylint, mypy) |
+| `make format` | Format code (black, isort) |
 
 ## Usage
 
@@ -122,6 +125,32 @@ Once setup is complete:
    - Blue: Time display
    - Yellow: Date display
    - Green: System info
+
+## Code Quality and Development
+
+This project includes several code quality tools to ensure clean, consistent code:
+
+### Code Linting and Formatting
+
+```bash
+# Run all linters
+make lint
+
+# Format code
+make format
+```
+
+The linting setup includes:
+- **Ruff**: Fast Python linter for quick checks
+- **Pylint**: Comprehensive linter with MicroPython support
+- **MyPy**: Static type checking with MicroPython stubs
+- **Black**: Code formatter for consistent styling
+- **isort**: Import statement organizer
+
+These tools are configured to work with MicroPython's unique requirements through:
+- Custom `.pylintrc` file with MicroPython-specific settings
+- `pyproject.toml` configuration for all tools
+- Type stubs in the `stubs/` directory for MicroPython modules
 
 ## Monitoring and Debugging
 

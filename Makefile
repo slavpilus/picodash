@@ -20,7 +20,7 @@ EMULATION_DIR = emulation
 MAIN_FILES = main.py boot.py wifi_config.txt workspaces.yaml
 LIB_FILES = $(wildcard $(LIB_DIR)/*.py)
 
-.PHONY: help install-tools setup-venv upload list connect reset refresh clean emulate emulate-build emulate-stop wifi_config workspace_config
+.PHONY: help install-tools setup-venv upload list connect reset refresh clean emulate emulate-build emulate-stop wifi_config workspace_config set-time lint format
 
 help:
 	@echo "PicoDash MicroPython Project"
@@ -36,6 +36,9 @@ help:
 	@echo "  make reset            Reset the Pico"
 	@echo "  make refresh          Reset and connect to REPL"
 	@echo "  make clean            Remove all files from Pico (except firmware)"
+	@echo "  make set-time        Set the Pico's RTC to current system time"
+	@echo "  make lint            Run all linters (ruff, pylint, mypy)"
+	@echo "  make format          Format code (black, isort)"
 	@echo ""
 	@echo "Configuration:"
 	@echo "  make wifi_config      Create wifi_config.txt from example"
@@ -124,3 +127,20 @@ emulate: wifi_config workspace_config
 emulate-stop:
 	@echo "Stopping PicoDash emulation..."
 	cd $(EMULATION_DIR) && docker-compose down
+
+# Code quality tools
+lint:
+	@echo "Running linters..."
+	@echo "Running Ruff..."
+	ruff check .
+	@echo "Running Pylint..."
+	pylint main.py boot.py lib/ upload_lib.py
+	@echo "Running MyPy..."
+	mypy main.py boot.py lib/ upload_lib.py
+	@echo "Linting complete."
+
+format:
+	@echo "Formatting code..."
+	black .
+	isort .
+	@echo "Formatting complete."
