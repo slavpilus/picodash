@@ -20,7 +20,7 @@ EMULATION_DIR = emulation
 MAIN_FILES = main.py boot.py wifi_config.txt workspaces.yaml
 LIB_FILES = $(wildcard $(LIB_DIR)/*.py)
 
-.PHONY: help install-tools setup-venv upload list connect reset refresh clean emulate emulate-build emulate-stop wifi_config workspace_config set-time lint format
+.PHONY: help install-tools setup-venv upload list connect reset refresh clean wifi_config workspace_config set-time lint format
 
 help:
 	@echo "PicoDash MicroPython Project"
@@ -43,11 +43,6 @@ help:
 	@echo "Configuration:"
 	@echo "  make wifi_config      Create wifi_config.txt from example"
 	@echo "  make workspace_config Create workspaces.yaml from example"
-	@echo ""
-	@echo "Emulation:"
-	@echo "  make emulate          Run the project in QEMU emulation"
-	@echo "  make emulate-build    Build the emulation Docker image"
-	@echo "  make emulate-stop     Stop the emulation container"
 	@echo ""
 	@echo "Environment:"
 	@echo "  PORT                  Set the serial port (default: $(PORT))"

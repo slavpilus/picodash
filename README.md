@@ -87,7 +87,6 @@ make upload PORT=/dev/cu.usbmodem*
 
 | Command | Description |
 |---------|-------------|
-| `make help` | Display help information |
 | `make install-tools` | Install required Python tools |
 | `make upload` | Upload all files to the Pico |
 | `make upload-main` | Upload only main files |
@@ -170,10 +169,8 @@ mpremote connect /dev/cu.usbmodem* ls
 ### Hardware Issues
 
 - **Can't Connect to Port**: Make sure you're using the correct port and the Pico is connected properly
-- **Permission Denied**: On Linux/macOS, you may need to use `sudo` or add your user to the appropriate group
 - **Connection Error**: Try unplugging and reconnecting the Pico
 - **Memory Errors**: MicroPython has limited RAM - reduce code complexity or use frozen modules
-- **Button X Not Working**: This is a known hardware limitation on some display units. The code is designed to work without this button.
 
 ## License
 
