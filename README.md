@@ -2,6 +2,12 @@
 
 A minimalistic dashboard application for the Raspberry Pi Pico W with Pimoroni Display Pack, written in MicroPython.
 
+> **⚠️ WORK IN PROGRESS ⚠️**
+> 
+> This project is currently under active development and is not yet fully functional.
+> The current implementation may contain bugs, incomplete features, or may not work as expected.
+> Please check back later for a stable release or feel free to contribute to its development.
+
 ## Hardware Requirements
 
 - Raspberry Pi Pico W
